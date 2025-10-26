@@ -5,12 +5,14 @@ from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.chrome.service import Service
 from webdriver_manager.chrome import ChromeDriverManager
-from pytest_html import extras
+
 def pytest_addoption(parser):
     parser.addoption("--headed", action="store_true", help="Show real Chrome window")
+
 @pytest.fixture
 def driver(request):
-    headed = request.config.getoption("--headed") or os.getenv("HEADED") == "1"
+    headed = request.config.getoption("--headed") or os.getenv("HEADFUL") == "1"
+
     opts = Options()
     if not headed:
         opts.add_argument("--headless=new")
@@ -18,9 +20,11 @@ def driver(request):
     opts.add_argument("--no-sandbox")
     opts.add_argument("--disable-dev-shm-usage")
 
-    d = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=opts)
+    service = Service(ChromeDriverManager().install())
+    d = webdriver.Chrome(service=service, options=opts)
     yield d
     d.quit()
+
 @pytest.hookimpl(tryfirst=True, hookwrapper=True)
 def pytest_runtest_makereport(item, call):
     outcome = yield
@@ -31,7 +35,11 @@ def pytest_runtest_makereport(item, call):
     if not drv:
         return
     Path("artifacts").mkdir(exist_ok=True)
-    img = Path("artifacts") / f"{item.name}.png"
-    drv.save_screenshot(str(img))
-    rep.extra = getattr(rep, "extra", [])
-    rep.extra.append(extras.image(str(img)))
+    png_path = f"artifacts/{item.name}.png"
+    drv.save_screenshot(png_path)
+    try:
+        from pytest_html import extras
+        rep.extra = getattr(rep, "extra", [])
+        rep.extra.append(extras.image(png_path))
+    except Exception:
+        pass
