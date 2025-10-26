@@ -1,4 +1,3 @@
-import os
 from pathlib import Path
 import pytest
 from selenium import webdriver
@@ -11,8 +10,7 @@ def pytest_addoption(parser):
 
 @pytest.fixture
 def driver(request):
-    headed = request.config.getoption("--headed") or os.getenv("HEADFUL") == "1"
-
+    headed = request.config.getoption("--headed")
     opts = Options()
     if not headed:
         opts.add_argument("--headless=new")
@@ -29,17 +27,24 @@ def driver(request):
 def pytest_runtest_makereport(item, call):
     outcome = yield
     rep = outcome.get_result()
+
     if rep.when != "call" or rep.passed:
         return
+
     drv = item.funcargs.get("driver")
     if not drv:
         return
+
     Path("artifacts").mkdir(exist_ok=True)
-    png_path = f"artifacts/{item.name}.png"
-    drv.save_screenshot(png_path)
+    png_path = Path("artifacts") / f"{item.name}.png"
+    try:
+        drv.save_screenshot(str(png_path))
+    except Exception:
+        return
+
     try:
         from pytest_html import extras
         rep.extra = getattr(rep, "extra", [])
-        rep.extra.append(extras.image(png_path))
+        rep.extra.append(extras.image(str(png_path)))
     except Exception:
         pass
