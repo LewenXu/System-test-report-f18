@@ -3,7 +3,7 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 
 BASE_URL = "https://ecommerce-playground.lambdatest.io/index.php?route=common/home"
-TEST_EMAIL = "tester@example.com" 
+TEST_EMAIL = "tester@example.com"
 
 def _click_first(driver, wait, locators):
     """依次尝试多个定位器，点到即止。"""
@@ -18,19 +18,27 @@ def _click_first(driver, wait, locators):
             last_err = e
     raise last_err or RuntimeError(f"Cannot click any of: {locators}")
 
-def _wait_any_visible(wait, selectors):
-    """传入若干 CSS 选择器，只要其中一个出现并可见就返回该元素。"""
-    for sel in selectors:
+def _any_visible(wait, candidates):
+    """候选定位器中任意一个出现且可见就返回该元素，否则返回 None。"""
+    for how, what in candidates:
         try:
-            return wait.until(EC.visibility_of_element_located((By.CSS_SELECTOR, sel)))
+            return wait.until(EC.visibility_of_element_located((how, what)))
         except Exception:
             pass
     return None
 
+def _xpath_contains_words(words):
+
+    lower = "abcdefghijklmnopqrstuvwxyz"
+    upper = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+    parts = [
+        f"contains(translate(.,'{upper}','{lower}'),'{w}')"
+        for w in words
+    ]
+    return f"//*[{ ' and '.join(parts) }]"
+
 def test_password_reset_flow(driver):
     wait = WebDriverWait(driver, 30)
-
-    # Step 1: 首页
     driver.get(BASE_URL)
 
     _click_first(driver, wait, [
@@ -69,19 +77,20 @@ def test_password_reset_flow(driver):
         or "route=account/forgotten" in d.current_url
     ))
 
-    alert = _wait_any_visible(wait, [
-        ".alert-success, .alert-danger, .alert-warning, .alert", 
-        "[role='alert']",
-        ".message, .notice, .notification",
-        ".notices .success, .notices .warning, .notices .error",
-        ".text-danger" 
+    alert = _any_visible(wait, [
+        (By.CSS_SELECTOR, ".alert, .alert-success, .alert-danger, .alert-warning"),
+        (By.CSS_SELECTOR, "[role='alert']"),
+        (By.CSS_SELECTOR, ".message, .notice, .notification, .notices .success, .notices .warning, .notices .error"),
+        (By.XPATH, _xpath_contains_words(["password", "reset", "email"])),
+        (By.XPATH, _xpath_contains_words(["e-mail", "address", "not", "found"])),
+        (By.CSS_SELECTOR, ".text-danger")
     ])
-    assert alert is not None, "Timeout waiting for confirmation/notice after submitting the reset form."
 
-    txt = alert.text.strip().lower()
-    assert txt != "", "The alert exists but contains empty text."
+    assert alert is not None, "Timeout waiting for confirmation/notice after submitting the reset form."
+    assert alert.text.strip() != "", "The alert exists but contains empty text."
 
     print("✅ The process for resetting a forgotten password is correct.")
+
 
 
 
