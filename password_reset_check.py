@@ -1,15 +1,12 @@
-import os
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 
-HOME_URL = "https://ecommerce-playground.lambdatest.io/index.php?route=common/home"
-LOGIN_URL_FRAGMENT = "route=account/login"
-FORGOT_URL_FRAGMENT = "route=account/forgotten"
-RESET_EMAIL = os.getenv("RESET_EMAIL", "tester@example.com")
+BASE_URL = "https://ecommerce-playground.lambdatest.io/index.php?route=common/home"
+FORGOTTEN_URL_KEY = "account/forgotten"
 
 def _click_first(driver, wait, locators):
-    last = None
+    last_error = None
     for by in locators:
         try:
             el = wait.until(EC.element_to_be_clickable(by))
@@ -17,51 +14,52 @@ def _click_first(driver, wait, locators):
             el.click()
             return
         except Exception as e:
-            last = e
+            last_error = e
             continue
-    raise AssertionError(f"Could not click any of: {locators}\nLast error: {last}")
+    raise RuntimeError(f"Cannot click any of: {locators}") from last_error
 
 def test_password_reset_flow(driver):
     wait = WebDriverWait(driver, 15)
 
-    driver.get(HOME_URL)
+    driver.get(BASE_URL)
 
     _click_first(driver, wait, [
-        (By.LINK_TEXT, "My account"),
-        (By.PARTIAL_LINK_TEXT, "My account"),
-        (By.XPATH, "//a[contains(.,'My account') or contains(.,'My Account')]"),
-        (By.CSS_SELECTOR, "a[title='My account'], a[title='My Account']"),
+        (By.LINK_TEXT, "My Account"),
+        (By.PARTIAL_LINK_TEXT, "My Account"),
+        (By.CSS_SELECTOR, "a[title='My Account']"),
+        (By.CSS_SELECTOR, "a[title='My account' i]"),
     ])
     _click_first(driver, wait, [
         (By.LINK_TEXT, "Login"),
         (By.PARTIAL_LINK_TEXT, "Login"),
-        (By.XPATH, "//a[contains(.,'Login')]"),
+        (By.CSS_SELECTOR, "a[href*='route=account/login']"),
     ])
-    WebDriverWait(driver, 10).until(EC.url_contains(LOGIN_URL_FRAGMENT))
+    wait.until(EC.url_contains("account/login"))
 
     _click_first(driver, wait, [
         (By.LINK_TEXT, "Forgotten Password"),
         (By.PARTIAL_LINK_TEXT, "Forgotten"),
-        (By.XPATH, "//a[contains(.,'Forgotten')]"),
+        (By.CSS_SELECTOR, "a[href*='route=account/forgotten']"),
     ])
-    WebDriverWait(driver, 10).until(EC.url_contains(FORGOT_URL_FRAGMENT))
-    email = wait.until(EC.visibility_of_element_located((
-        By.CSS_SELECTOR, "input[type='email'], input[name='email'], #input-email"
-    )))
+    wait.until(EC.url_contains("account/forgotten"))
+
+    email = wait.until(EC.visibility_of_element_located((By.CSS_SELECTOR, "input[name='email']")))
     email.clear()
-    email.send_keys(RESET_EMAIL)
+    email.send_keys("tester@example.com")
+
     _click_first(driver, wait, [
-        (By.XPATH, "//input[@type='submit' and (@value='Continue' or @value='continue')]"),
-        (By.CSS_SELECTOR, "input.btn.btn-primary"),
+        (By.CSS_SELECTOR, "input[type='submit'][value='Continue']"),
+        (By.XPATH, "//input[@type='submit' and @value='Continue']"),
         (By.XPATH, "//button[normalize-space()='Continue']"),
         (By.CSS_SELECTOR, "button[type='submit']"),
     ])
 
-    alert = wait.until(EC.presence_of_element_located((
-        By.CSS_SELECTOR, ".alert, .alert-success, .alert-warning, .alert-danger, .message, .notice"
+    alert = wait.until(EC.visibility_of_element_located((
+        By.CSS_SELECTOR, ".alert, .alert-success, .alert-danger, .notice, .message"
     )))
-    assert alert is not None
-    assert FORGOT_URL_FRAGMENT in driver.current_url or "success" in driver.current_url
+    assert FORGOTTEN_URL_KEY in driver.current_url
+    assert alert.is_displayed()
 
     print("✅ The process for resetting a forgotten password is correct.")
+
 
