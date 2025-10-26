@@ -18,7 +18,6 @@ def _click_first(driver, wait, locators):
     raise last_err or RuntimeError(f"Cannot click any of: {locators}")
 
 def _any_visible(wait, candidates):
-    """候选定位器中任意一个出现且可见就返回该元素，否则返回 None。"""
     for how, what in candidates:
         try:
             return wait.until(EC.visibility_of_element_located((how, what)))
