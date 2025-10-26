@@ -6,7 +6,6 @@ BASE_URL = "https://ecommerce-playground.lambdatest.io/index.php?route=common/ho
 TEST_EMAIL = "tester@example.com"
 
 def _click_first(driver, wait, locators):
-    """依次尝试多个定位器，点到即止。"""
     last_err = None
     for by in locators:
         try:
