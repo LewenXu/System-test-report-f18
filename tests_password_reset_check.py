@@ -3,7 +3,7 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 
 BASE_URL = "https://ecommerce-playground.lambdatest.io/index.php?route=common/home"
-TEST_EMAIL = "tester@example.com"  # 用任何邮箱都行，此用例只验证流程
+TEST_EMAIL = "tester@example.com"  
 
 def _click_first(driver, wait, locators):
     for by in locators:
